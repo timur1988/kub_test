@@ -1,0 +1,70 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: test
+  name: test
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      run: test
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: test
+    spec:
+      containers:
+      - image: test/test
+        imagePullPolicy: IfNotPresent
+        name: test
+        ports:
+        - containerPort: 7000
+          protocol: TCP
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: test
+  name: test
+  namespace: default
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 31438
+    port: 7000
+    protocol: TCP
+    targetPort: 7000
+  selector:
+    run: test
+  sessionAffinity: None
+  type: NodePort
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: test
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+  - host: test.test.com
+    http:
+      paths:
+      - path: /test
+        backend:
+          serviceName: test
+          servicePort: 7000
